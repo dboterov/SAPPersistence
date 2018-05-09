@@ -16,8 +16,10 @@ import javax.persistence.Table;
  */
 @Entity
 @Table(name = "OITB")
-@NamedQueries({@NamedQuery(name = "GrupoItems.findAll", query = "SELECT i FROM GrupoItems i")})
-public class GrupoItems implements Serializable{
+@NamedQueries({
+    @NamedQuery(name = "GrupoItems.findAll", query = "SELECT i FROM GrupoItems i")})
+public class GrupoItems implements Serializable {
+
     @Id
     @Basic(optional = false)
     @Column(name = "ItmsGrpCod")
@@ -27,7 +29,7 @@ public class GrupoItems implements Serializable{
 
     public GrupoItems() {
     }
-    
+
     public GrupoItems(Integer itmsGrpCod) {
         this.itmsGrpCod = itmsGrpCod;
     }

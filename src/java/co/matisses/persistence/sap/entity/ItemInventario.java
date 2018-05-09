@@ -841,12 +841,14 @@ public class ItemInventario implements Serializable {
     private String uColeccion;
     @Column(name = "U_CodigoMarca")
     private String uCodigoMarca;
-    @Column(name = "U_Bloqueado") 
+    @Column(name = "U_Bloqueado")
     private String uBloqueado;
     @Column(name = "U_ID_MERCADOLIBRE")
     private String uIdMercadoLibre;
     @Column(name = "U_DescripcionMdl")
     private String uDescripcionML;
+    @Column(name = "U_nombreMCL")
+    private String uNombreMCL;
 
     public ItemInventario() {
     }
@@ -3661,6 +3663,14 @@ public class ItemInventario implements Serializable {
 
     public void setuDescripcionML(String uDescripcionML) {
         this.uDescripcionML = uDescripcionML;
+    }
+
+    public String getuNombreMCL() {
+        return uNombreMCL;
+    }
+
+    public void setuNombreMCL(String uNombreMCL) {
+        this.uNombreMCL = uNombreMCL;
     }
 
     @Override

@@ -37,7 +37,7 @@ public class BaruMaterialesFacade extends AbstractFacade<BaruMateriales> {
         sb.append("INNER  JOIN [@BARU_MATERIALES] materiales ON materiales.Code = materialesArticulo.U_matCode ");
         sb.append("WHERE  materialesArticulo.U_itemCode = '");
         sb.append(referencia);
-        sb.append("' ");
+        sb.append("' ORDER BY materiales.Name");
 
         try {
             return em.createNativeQuery(sb.toString(), BaruMateriales.class).getResultList();

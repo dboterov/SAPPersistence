@@ -1,11 +1,14 @@
 package co.matisses.persistence.sap.entity;
 
 import java.io.Serializable;
+import java.util.Date;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 
 /**
  *
@@ -26,9 +29,12 @@ public class BaruDecoradores implements Serializable {
     @Column(name = "U_Nit")
     private String uNit;
     @Column(name = "U_FechaIngreso")
-    private String uFechaIngreso;
+    @Temporal(TemporalType.DATE)
+    private Date uFechaIngreso;
     @Column(name = "U_Estado")
     private String uEstado;
+    @Column(name = "U_Tipo")
+    private String uTipo;
 
     public BaruDecoradores() {
     }
@@ -37,7 +43,7 @@ public class BaruDecoradores implements Serializable {
         this.code = code;
     }
 
-    public BaruDecoradores(String code, String name, String uNit, String uFechaIngreso, String uEstado) {
+    public BaruDecoradores(String code, String name, String uNit, Date uFechaIngreso, String uEstado) {
         this.code = code;
         this.name = name;
         this.uNit = uNit;
@@ -69,11 +75,11 @@ public class BaruDecoradores implements Serializable {
         this.uNit = uNit;
     }
 
-    public String getuFechaIngreso() {
+    public Date getuFechaIngreso() {
         return uFechaIngreso;
     }
 
-    public void setuFechaIngreso(String uFechaIngreso) {
+    public void setuFechaIngreso(Date uFechaIngreso) {
         this.uFechaIngreso = uFechaIngreso;
     }
 
@@ -83,6 +89,14 @@ public class BaruDecoradores implements Serializable {
 
     public void setuEstado(String uEstado) {
         this.uEstado = uEstado;
+    }
+
+    public String getuTipo() {
+        return uTipo;
+    }
+
+    public void setuTipo(String uTipo) {
+        this.uTipo = uTipo;
     }
 
     @Override

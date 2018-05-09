@@ -22,6 +22,8 @@ public class Usuario implements Serializable {
     private String userCode;
     @Column(name = "Locked")
     private Character Locked;
+    @Column(name = "U_NAME")
+    private String name;
 
     public Usuario() {
     }
@@ -34,6 +36,13 @@ public class Usuario implements Serializable {
         this.userID = userID;
         this.userCode = userCode;
         this.Locked = Locked;
+    }
+
+    public Usuario(Integer userID, String userCode, Character Locked, String name) {
+        this.userID = userID;
+        this.userCode = userCode;
+        this.Locked = Locked;
+        this.name = name;
     }
 
     public Integer getUserID() {
@@ -58,6 +67,14 @@ public class Usuario implements Serializable {
 
     public void setLocked(Character Locked) {
         this.Locked = Locked;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override

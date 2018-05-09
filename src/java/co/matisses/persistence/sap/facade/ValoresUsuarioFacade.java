@@ -168,4 +168,21 @@ public class ValoresUsuarioFacade extends AbstractFacade<ValoresUsuario> {
         }
         return null;
     }
+
+    public List<ValoresUsuario> listarValoresUsuario(Integer fieldID, String tabla) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<ValoresUsuario> cq = cb.createQuery(ValoresUsuario.class);
+        Root<ValoresUsuario> valor = cq.from(ValoresUsuario.class);
+
+        cq.where(cb.equal(valor.get(ValoresUsuario_.tableID), tabla), cb.equal(valor.get(ValoresUsuario_.fieldID), fieldID));
+        cq.orderBy(cb.asc(valor.get(ValoresUsuario_.descr)));
+
+        try {
+            return em.createQuery(cq).getResultList();
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al consultar los valores de usuario. ", e);
+        }
+        return null;
+    }
 }

@@ -6,6 +6,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -106,5 +107,24 @@ public class SocioDeNegociosFacade extends AbstractFacade<SocioDeNegocios> {
             log.log(Level.SEVERE, "Ocurrio un error al consultar la direccion de entrega del cliente", e);
             return "";
         }
+    }
+
+    public Long obtenerTotalCompras(String cardCode) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(NUMERIC(18, 0), SUM(f.doctotal) - SUM(d.doctotal)) AS totalVendido ");
+        sb.append("FROM   OINV f ");
+        sb.append("FULL   JOIN ORIN d ON d.numatcard = f.docnum ");
+        sb.append("WHERE  f.cardcode = '");
+        sb.append(cardCode);
+        sb.append("' ");
+
+        try {
+            return ((BigDecimal) em.createNativeQuery(sb.toString()).getSingleResult()).longValue();
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Ocurrio un error al obtener el valor de compras. ", e);
+        }
+        return 0L;
     }
 }

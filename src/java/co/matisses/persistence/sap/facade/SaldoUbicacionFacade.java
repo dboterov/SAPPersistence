@@ -292,4 +292,20 @@ public class SaldoUbicacionFacade extends AbstractFacade<SaldoUbicacion> {
             return new ArrayList<>();
         }
     }
+
+    public List<SaldoUbicacion> obtenerSaldoAlmacen(String almacen) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<SaldoUbicacion> cq = cb.createQuery(SaldoUbicacion.class);
+        Root<SaldoUbicacion> saldo = cq.from(SaldoUbicacion.class);
+
+        cq.where(cb.equal(saldo.get(SaldoUbicacion_.whsCode), almacen), cb.gt(saldo.get(SaldoUbicacion_.onHandQty), 0));
+
+        try {
+            return em.createQuery(cq).getResultList();
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Ocurrio un error al consultar el saldo de ubicaciones para almacen. ", e);
+        }
+        return null;
+    }
 }

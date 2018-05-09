@@ -507,4 +507,68 @@ public class SaldoItemInventarioFacade extends AbstractFacade<SaldoItemInventari
             return null;
         }
     }
+
+    public List<Object[]> getDiasAlmacen(String referencia) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(VARCHAR(20), det.WhsCode) AS whsCode, DATEDIFF(dd, MAX(enc.DocDate), GETDATE()) AS dias_exhibido ");
+        sb.append("FROM   OWTR enc ");
+        sb.append("INNER  JOIN WTR1 det ON det.DocEntry = enc.DocEntry  ");
+        sb.append("WHERE  det.ItemCode = '");
+        sb.append(referencia);
+        sb.append("' GROUP BY det.ItemCode, det.WhsCode");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public List<Object[]> getMovimientos(String itemCode, String whsCode) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(VARCHAR, t2.ItemCode) AS referencia, ");
+        sb.append("       CONVERT(INT, t1.DocNum) AS numero, ");
+        sb.append("       CONVERT(DATE, t1.DocDate) AS fecha, ");
+        sb.append("       CONVERT(VARCHAR(MAX), t1.Comments) AS comentario, ");
+        sb.append("       CONVERT(VARCHAR, t1.Filler) AS origen, ");
+        sb.append("       CONVERT(VARCHAR, t2.WhsCode) AS destino, ");
+        sb.append("       CONVERT(INT, SUM(t2.Quantity)) AS Cantidad ");
+        sb.append("FROM   WTR1 t2 ");
+        sb.append("INNER  JOIN OWTR t1 ON t1.DocEntry = t2.DocEntry ");
+        sb.append("WHERE  t2.ItemCode = '");
+        sb.append(itemCode);
+        sb.append("' AND  (t2.WhsCode like '");
+        sb.append(whsCode);
+        sb.append("%' OR  t1.Filler LIKE '");
+        sb.append(whsCode);
+        sb.append("%') GROUP BY t2.ItemCode, t1.DocNum, t1.DocDate, t1.Comments, t1.Filler, t2.WhsCode, t2.ItemCode ");
+        sb.append("ORDER  BY t1.DocDate, t2.ItemCode, t1.DocNum, t1.Filler");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    //diferenciar por referencia
+    public List<SaldoItemInventario> obtenerSaldoAlmacenItemCode(String almacen, String itemCode) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<SaldoItemInventario> cq = cb.createQuery(SaldoItemInventario.class);
+        Root<SaldoItemInventario> saldo = cq.from(SaldoItemInventario.class);
+
+        cq.where(cb.equal(saldo.get("saldoItemInventarioPK").get("whsCode").get("whsCode"), almacen),
+                cb.gt(saldo.get("onHand").as(Integer.class), 0),
+                cb.equal(saldo.get("saldoItemInventarioPK").get("itemCode"), itemCode)
+        );
+
+        try {
+            return em.createQuery(cq).getResultList();
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, e.getMessage());
+            return null;
+        }
+    }
 }

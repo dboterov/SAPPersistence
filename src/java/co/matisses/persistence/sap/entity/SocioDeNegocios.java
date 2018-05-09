@@ -73,6 +73,8 @@ public class SocioDeNegocios implements Serializable {
     private String sexo;
     @Column(name = "Cellular")
     private String celular;
+    @Column(name = "Phone1")
+    private String phone1;
     @Column(name = "U_BPCO_Address")
     private String direccion;
     @Temporal(TemporalType.DATE)
@@ -108,6 +110,14 @@ public class SocioDeNegocios implements Serializable {
 
     public void setCelular(String celular) {
         this.celular = celular;
+    }
+
+    public String getPhone1() {
+        return phone1;
+    }
+
+    public void setPhone1(String phone1) {
+        this.phone1 = phone1;
     }
 
     public String getuBpcoCs() {

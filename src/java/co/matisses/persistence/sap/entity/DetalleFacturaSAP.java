@@ -503,6 +503,8 @@ public class DetalleFacturaSAP implements Serializable {
     private BigDecimal uIncomingQty;
     @Column(name = "U_Comments")
     private String uComments;
+    @Column(name = "U_lineNumFv")
+    private Integer uLineNumFV;
 
     public DetalleFacturaSAP() {
     }
@@ -2409,6 +2411,14 @@ public class DetalleFacturaSAP implements Serializable {
 
     public void setUComments(String uComments) {
         this.uComments = uComments;
+    }
+
+    public Integer getuLineNumFV() {
+        return uLineNumFV;
+    }
+
+    public void setuLineNumFV(Integer uLineNumFV) {
+        this.uLineNumFV = uLineNumFV;
     }
 
     @Override

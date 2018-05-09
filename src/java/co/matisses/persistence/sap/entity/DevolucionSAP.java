@@ -3,10 +3,14 @@ package co.matisses.persistence.sap.entity;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -876,6 +880,8 @@ public class DevolucionSAP implements Serializable {
     private String ucedula;
     @Column(name = "U_CatRet")
     private String uCatRet;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "detalleDevolucionSAPPK.docEntry", fetch = FetchType.EAGER)
+    private List<DetalleDevolucionSAP> detalle;
 
     public DevolucionSAP() {
     }
@@ -4210,6 +4216,14 @@ public class DevolucionSAP implements Serializable {
 
     public void setuCatRet(String uCatRet) {
         this.uCatRet = uCatRet;
+    }
+
+    public List<DetalleDevolucionSAP> getDetalle() {
+        return detalle;
+    }
+
+    public void setDetalle(List<DetalleDevolucionSAP> detalle) {
+        this.detalle = detalle;
     }
 
     @Override

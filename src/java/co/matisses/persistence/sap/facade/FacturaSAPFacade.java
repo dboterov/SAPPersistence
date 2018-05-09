@@ -889,7 +889,9 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
         sb.append("        WHERE  SeriesName = 'NC' ");
         sb.append("        AND    Locked = 'N') serie, ");
         sb.append("       CAST(det.price AS INT) price, ");
-        sb.append("       CAST(det.DiscPrcnt AS NUMERIC(5,2)) disPerc ");
+        sb.append("       CAST(det.DiscPrcnt AS NUMERIC(5,2)) disPerc, ");
+        sb.append("       CAST(det.priceAfvat AS NUMERIC(18,2)) priceAfVat, ");
+        sb.append("       CAST(det.taxcode AS VARCHAR(50)) taxCode ");
         sb.append("FROM   OINV enc ");
         sb.append("INNER  JOIN INV1 det ON det.docentry = enc.docentry ");
         sb.append("INNER  JOIN OILM msg ON msg.DocEntry = enc.DocEntry AND msg.TransType = 13 AND msg.DocLineNum = det.LineNum ");
@@ -947,47 +949,111 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
     public List<Object[]> obtenerPagosFactura(Integer docNum) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("SELECT fac.DocNum AS InvoiceNumber, ");
-        sb.append("       fac.DocTotal AS InvoiceTotal, ");
-        sb.append("       rec.DocDate AS ReceiptDate, ");
-        sb.append("       rec.DocNum AS ReceiptNumber, ");
-        sb.append("       rec.DocTotal + fac.WTSum AS ReceiptTotal,");
-        sb.append("       ISNULL(rec.CashSum, 0.0) AS PaidCash, ");
-        sb.append("       ISNULL(fac.WTSum, 0.0) AS Retenciones, ");
-        sb.append("       ISNULL((SELECT SUM(SumApplied) * -1 FROM RCT2 WHERE DocNum = rec.DocNum AND InvType IN (24, 30)), 0.0) AS OthersReceipts, ");
-        sb.append("       ISNULL((SELECT SUM(SumApplied) FROM RCT2 WHERE DocNum = rec.DocNum AND InvType = 14), 0.0) AS CreditNotes, ");
-        sb.append("       ISNULL(rec.TrsfrSum, 0.0) AS Cruces, ");
-        sb.append("       ISNULL((SELECT SUM(SumApplied) FROM VPM2 WHERE DocEntry = fac.DocEntry AND InvType = 13), 0.0) as Egresos, ");
-        sb.append("       (SELECT MAX(enc.DocDate) FROM VPM2 det INNER JOIN OVPM enc ON enc.DocNum = det.DocNum WHERE det.DocEntry = fac.DocEntry AND InvType = 13) AS FechaCruceEgresos, ");
-        sb.append("       ISNULL(SUM(cheq.CheckSum), 0.0) AS PaidCheck, ");
-        sb.append("       ISNULL(SUM(tarj.CreditSum), 0.0) AS PaidCreditCard, ");
-        sb.append("       ISNULL(recon.ReconSum, 0.0) AS PaidInternalRecon, ");
-        sb.append("       ISNULL(rec.NoDocSum * -1, 0.0) AS PaidBalance, ");
-        sb.append("       recon.ReconDate AS DateInternalRecon, ");
-        sb.append("       ISNULL(fac.RoundDif, 0.0) AS AjustePeso ");
-        sb.append("FROM   OINV fac ");
-        sb.append("LEFT   JOIN RCT2 recFac ON recFac.DocEntry = fac.DocEntry ");
-        sb.append("LEFT   JOIN ORCT rec ON (rec.DocNum = recFac.DocNum OR rec.DocNum = fac.ReceiptNum) AND rec.Canceled = 'N' AND fac.CardCode = rec.CardCode ");
-        sb.append("LEFT   JOIN RCT1 cheq ON cheq.DocNum = rec.DocNum ");
-        sb.append("LEFT   JOIN RCT3 tarj ON tarj.DocNum = rec.DocNum ");
-        sb.append("LEFT   JOIN (SELECT reconEnc.ReconNum, reconDet.ReconSum, reconDet.SrcObjAbs, reconDet.SrcObjTyp, reconEnc.ReconDate ");
-        sb.append("		FROM   ITR1 reconDet ");
-        sb.append("		INNER  JOIN OITR reconEnc ON reconEnc.ReconNum = reconDet.ReconNum ");
-        sb.append("		WHERE  reconDet.SrcObjTyp = '13' ");
-        sb.append("		AND    reconEnc.ReconType = 0 ");
-        sb.append("		AND    reconEnc.InitObjTyp IS NULL ");
-        sb.append("		AND    reconEnc.Canceled = 'N' ");
-        sb.append("		AND    reconDet.SrcObjAbs IN (SELECT docentry ");
-        sb.append("					      FROM   OINV ");
-        sb.append("					      WHERE  docnum = '");
+        sb.append("SELECT T1.InvoiceNumber, T1.InvoiceTotal, T1.ReceiptDate, T1.ReceiptNumber, T1.ReceiptTotal, T1.PaidCash, T1.Retenciones, T1.OthersReceipts, ");
+        sb.append("       T1.CreditNotes, T1.Cruces, T1.Egresos, T1.FechaCruceEgresos, T1.PaidCheck, SUM(T1.PaidCreditCard) AS PaidCreditCard, ");
+        sb.append("       T1.PaidInternalRecon, T1.PaidBalance, T1.DateInternalRecon, T1.AjustePeso ");
+        sb.append("FROM (SELECT fac.DocNum AS InvoiceNumber, ");
+        sb.append("             fac.DocTotal AS InvoiceTotal, ");
+        sb.append("             rec.DocDate AS ReceiptDate, ");
+        sb.append("             rec.DocNum AS ReceiptNumber, ");
+        sb.append("             rec.DocTotal + fac.WTSum AS ReceiptTotal,");
+        sb.append("             ISNULL(rec.CashSum, 0.0) AS PaidCash, ");
+        sb.append("             ISNULL(fac.WTSum, 0.0) AS Retenciones, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) * -1 FROM RCT2 WHERE DocNum = rec.DocNum AND InvType IN (24, 30)), 0.0) AS OthersReceipts, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) FROM RCT2 WHERE DocNum = rec.DocNum AND InvType = 14), 0.0) AS CreditNotes, ");
+        sb.append("             ISNULL(rec.TrsfrSum, 0.0) AS Cruces, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) FROM VPM2 WHERE DocEntry = fac.DocEntry AND InvType = 13), 0.0) as Egresos, ");
+        sb.append("             (SELECT MAX(enc.DocDate) FROM VPM2 det INNER JOIN OVPM enc ON enc.DocNum = det.DocNum WHERE det.DocEntry = fac.DocEntry AND InvType = 13) AS FechaCruceEgresos, ");
+        sb.append("             ISNULL(SUM(cheq.CheckSum), 0.0) AS PaidCheck, ");
+        sb.append("             ISNULL(/*SUM(*/tarj.CreditSum/*)*/, 0.0) AS PaidCreditCard, ");
+        sb.append("             ISNULL(recon.ReconSum, 0.0) AS PaidInternalRecon, ");
+        sb.append("             ISNULL(rec.NoDocSum * -1, 0.0) AS PaidBalance, ");
+        sb.append("             recon.ReconDate AS DateInternalRecon, ");
+        sb.append("             ISNULL(fac.RoundDif, 0.0) AS AjustePeso ");
+        sb.append("      FROM   OINV fac ");
+        sb.append("      LEFT   JOIN RCT2 recFac ON recFac.DocEntry = fac.DocEntry ");
+        sb.append("      LEFT   JOIN ORCT rec ON (rec.DocNum = recFac.DocNum OR rec.DocNum = fac.ReceiptNum) AND rec.Canceled = 'N' AND fac.CardCode = rec.CardCode ");
+        sb.append("      LEFT   JOIN RCT1 cheq ON cheq.DocNum = rec.DocNum ");
+        sb.append("      LEFT   JOIN RCT3 tarj ON tarj.DocNum = rec.DocNum ");
+        sb.append("      LEFT   JOIN (SELECT reconEnc.ReconNum, reconDet.ReconSum, reconDet.SrcObjAbs, reconDet.SrcObjTyp, reconEnc.ReconDate ");
+        sb.append("                   FROM   ITR1 reconDet ");
+        sb.append("                   INNER  JOIN OITR reconEnc ON reconEnc.ReconNum = reconDet.ReconNum ");
+        sb.append("                   WHERE  reconDet.SrcObjTyp = '13' ");
+        sb.append("                   AND    reconEnc.ReconType = 0 ");
+        sb.append("                   AND    reconEnc.InitObjTyp IS NULL ");
+        sb.append("                   AND    reconEnc.Canceled = 'N' ");
+        sb.append("                   AND    reconDet.SrcObjAbs IN (SELECT docentry ");
+        sb.append("                                                 FROM   OINV ");
+        sb.append("                                                 WHERE  docnum = '");
         sb.append(docNum);
-        sb.append("') ");
-        sb.append("	       ) AS recon ON recon.SrcObjAbs = fac.DocEntry ");
+        sb.append("')) AS recon ON recon.SrcObjAbs = fac.DocEntry ");
         sb.append("WHERE  fac.docnum = '");
         sb.append(docNum);
         sb.append("' ");
-        sb.append("GROUP  BY fac.DocNum, fac.DocTotal, rec.DocNum, rec.DocTotal, rec.DocDate, rec.NoDocSum, rec.CashSum, tarj.CreditSum, recon.ReconSum, fac.DocEntry, rec.TrsfrSum, fac.RoundDif, ");
-        sb.append("recon.ReconDate, fac.WTSum ");
+        sb.append("     GROUP  BY fac.DocNum, fac.DocTotal, rec.DocNum, rec.DocTotal, rec.DocDate, rec.NoDocSum, rec.CashSum, tarj.CreditSum, recon.ReconSum, fac.DocEntry, rec.TrsfrSum, fac.RoundDif, ");
+        sb.append("            recon.ReconDate, fac.WTSum) AS T1 ");
+        sb.append("GROUP  BY t1.InvoiceNumber, InvoiceTotal, t1.ReceiptDate, t1.ReceiptNumber, t1.ReceiptTotal, t1.PaidCash, t1.Retenciones, T1.OthersReceipts, ");
+        sb.append("T1.CreditNotes, T1.Cruces, T1.Egresos, T1.FechaCruceEgresos, T1.PaidCheck, T1.PaidInternalRecon, T1.PaidBalance, T1.DateInternalRecon, T1.AjustePeso ");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (NoResultException e) {
+            return null;
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "", e);
+            return null;
+        }
+    }
+
+    public List<Object[]> obtenerPagosFacturaV2(Integer docNum) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT T1.InvoiceNumber, T1.InvoiceTotal, T1.ReceiptDate, T1.ReceiptNumber, T1.ReceiptTotal, T1.PaidCash, T1.Retenciones, T1.OthersReceipts, ");
+        sb.append("       T1.CreditNotes, T1.Cruces, T1.Egresos, T1.FechaCruceEgresos, T1.PaidCheck, SUM(T1.PaidCreditCard) AS PaidCreditCard, ");
+        sb.append("       T1.PaidInternalRecon, T1.PaidBalance, T1.DateInternalRecon, T1.AjustePeso, T1.SumApplied ");
+        sb.append("FROM (SELECT fac.DocNum AS InvoiceNumber, ");
+        sb.append("             fac.DocTotal AS InvoiceTotal, ");
+        sb.append("             rec.DocDate AS ReceiptDate, ");
+        sb.append("             rec.DocNum AS ReceiptNumber, ");
+        sb.append("             rec.DocTotal + fac.WTSum AS ReceiptTotal, ");
+        sb.append("             recfac.SumApplied AS SumApplied, ");
+        sb.append("             ISNULL(rec.CashSum, 0.0) AS PaidCash, ");
+        sb.append("             ISNULL(fac.WTSum, 0.0) AS Retenciones, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) * -1 FROM RCT2 WHERE DocNum = rec.DocNum AND InvType IN (24, 30)), 0.0) AS OthersReceipts, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) FROM RCT2 WHERE DocNum = rec.DocNum AND InvType = 14), 0.0) AS CreditNotes, ");
+        sb.append("             ISNULL(rec.TrsfrSum, 0.0) AS Cruces, ");
+        sb.append("             ISNULL((SELECT SUM(SumApplied) FROM VPM2 WHERE DocEntry = fac.DocEntry AND InvType = 13), 0.0) as Egresos, ");
+        sb.append("             (SELECT MAX(enc.DocDate) FROM VPM2 det INNER JOIN OVPM enc ON enc.DocNum = det.DocNum WHERE det.DocEntry = fac.DocEntry AND InvType = 13) AS FechaCruceEgresos, ");
+        sb.append("             ISNULL(SUM(cheq.CheckSum), 0.0) AS PaidCheck, ");
+        sb.append("             ISNULL(/*SUM(*/tarj.CreditSum/*)*/, 0.0) AS PaidCreditCard, ");
+        sb.append("             ISNULL(recon.ReconSum, 0.0) AS PaidInternalRecon, ");
+        sb.append("             ISNULL(rec.NoDocSum * -1, 0.0) AS PaidBalance, ");
+        sb.append("             recon.ReconDate AS DateInternalRecon, ");
+        sb.append("             ISNULL(fac.RoundDif, 0.0) AS AjustePeso ");
+        sb.append("      FROM   OINV fac ");
+        sb.append("      LEFT   JOIN RCT2 recFac ON recFac.DocEntry = fac.DocEntry ");
+        sb.append("      INNER  JOIN ORCT rec ON (rec.DocNum = recFac.DocNum) AND rec.Canceled = 'N' ");
+        sb.append("      LEFT   JOIN RCT1 cheq ON cheq.DocNum = rec.DocNum ");
+        sb.append("      LEFT   JOIN RCT3 tarj ON tarj.DocNum = rec.DocNum ");
+        sb.append("      LEFT   JOIN (SELECT reconEnc.ReconNum, reconDet.ReconSum, reconDet.SrcObjAbs, reconDet.SrcObjTyp, reconEnc.ReconDate ");
+        sb.append("                   FROM   ITR1 reconDet ");
+        sb.append("                   INNER  JOIN OITR reconEnc ON reconEnc.ReconNum = reconDet.ReconNum ");
+        sb.append("                   WHERE  reconDet.SrcObjTyp = '13' ");
+        sb.append("                   AND    reconEnc.ReconType = 0 ");
+        sb.append("                   AND    reconEnc.InitObjTyp IS NULL ");
+        sb.append("                   AND    reconEnc.Canceled = 'N' ");
+        sb.append("                   AND    reconDet.SrcObjAbs IN (SELECT docentry ");
+        sb.append("                                                 FROM   OINV ");
+        sb.append("                                                 WHERE  docnum = '");
+        sb.append(docNum);
+        sb.append("')) AS recon ON recon.SrcObjAbs = fac.DocEntry ");
+        sb.append("WHERE  fac.docnum = '");
+        sb.append(docNum);
+        sb.append("' ");
+        sb.append("     GROUP  BY fac.DocNum, fac.DocTotal, rec.DocNum, rec.DocTotal, rec.DocDate, rec.NoDocSum, rec.CashSum, tarj.CreditSum, recon.ReconSum, fac.DocEntry, rec.TrsfrSum, fac.RoundDif, ");
+        sb.append("            recon.ReconDate, fac.WTSum, recfac.SumApplied) AS T1 ");
+        sb.append("GROUP  BY t1.InvoiceNumber, InvoiceTotal, t1.ReceiptDate, t1.ReceiptNumber, t1.ReceiptTotal, T1.SumApplied, t1.PaidCash, t1.Retenciones, T1.OthersReceipts, ");
+        sb.append("T1.CreditNotes, T1.Cruces, T1.Egresos, T1.FechaCruceEgresos, T1.PaidCheck, T1.PaidInternalRecon, T1.PaidBalance, T1.DateInternalRecon, T1.AjustePeso ");
 
         try {
             return em.createNativeQuery(sb.toString()).getResultList();
@@ -1181,18 +1247,22 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
         sb.append("               SUM(fac.DocTotal - fac.VatSum - fac.RoundDif) AS ventas, ");
         sb.append("               0 AS devuelto ");
         sb.append("        FROM   OINV fac ");
-        sb.append("        WHERE  YEAR(fac.DocDate) BETWEEN '");
-        sb.append(startYear);
-        sb.append("' AND '");
-        sb.append(endYear);
-        sb.append("'       AND    MONTH(fac.DocDate) BETWEEN '");
-        sb.append(startMonth);
-        sb.append("' AND '");
-        sb.append(endMonth);
-        sb.append("'       AND    DAY(fac.DocDate) BETWEEN '");
-        sb.append(startDay);
-        sb.append("' AND '");
-        sb.append(endDay);
+        sb.append("        WHERE  CONVERT(DATE, fac.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("        AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("        WHERE  YEAR(fac.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("'       AND    MONTH(fac.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("'       AND    DAY(fac.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
         sb.append("'       AND    fac.DocNum NOT LIKE '2%' ");
         sb.append("        AND    fac.DocNum NOT LIKE '5%' ");
         sb.append("        AND    fac.DocType = 'I' ");
@@ -1207,24 +1277,104 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
         sb.append("               0 AS ventas, ");
         sb.append("               SUM(dev.DocTotal - dev.VatSum - dev.RoundDif) devuelto ");
         sb.append("        FROM   ORIN dev ");
-        sb.append("        WHERE  YEAR(dev.DocDate) BETWEEN '");
-        sb.append(startYear);
-        sb.append("' AND '");
-        sb.append(endYear);
-        sb.append("'       AND    MONTH(dev.DocDate) BETWEEN '");
-        sb.append(startMonth);
-        sb.append("' AND '");
-        sb.append(endMonth);
-        sb.append("'       AND    DAY(dev.DocDate) BETWEEN '");
-        sb.append(startDay);
-        sb.append("' AND '");
-        sb.append(endDay);
+        sb.append("        WHERE  CONVERT(DATE, dev.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("        AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("        WHERE  YEAR(dev.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("'       AND    MONTH(dev.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("'       AND    DAY(dev.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
         sb.append("'       AND    dev.NumAtCard NOT LIKE '2%' ");
         sb.append("        AND    dev.NumAtCard NOT LIKE '5%' ");
         sb.append("        AND    dev.DocType = 'I' ");
         sb.append("        AND    numAtCard NOT IN (SELECT U_DocNum ");
-        sb.append("        FROM   [@BARU_DOC_EXCLUIDOS] ");
-        sb.append("        WHERE  U_TipoDocumento = 'Devolucion') ");
+        sb.append("                                 FROM   [@BARU_DOC_EXCLUIDOS] ");
+        sb.append("                                 WHERE  U_TipoDocumento = 'Devolucion') ");
+        sb.append("        GROUP  BY dev.docdate, SUBSTRING(CONVERT(VARCHAR, dev.NumAtCard), 1, 2) ");
+        sb.append("       ) AS ventasnetas ");
+        sb.append("GROUP  BY almacen ");
+        sb.append("HAVING SUM(ventas) - SUM(devuelto) <> 0 ");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public List<Object[]> obtenerVentasNetasJuanCamilo(Integer startYear, Integer startMonth, Integer startDay, Integer endYear, Integer endMonth, Integer endDay) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT almacen, ");
+        sb.append("       CONVERT(NUMERIC, SUM(ventas) - SUM(devuelto)) AS ventasnetas ");
+        sb.append("FROM   ( ");
+        sb.append("        SELECT fac.docdate, ");
+        sb.append("               SUBSTRING(CONVERT(VARCHAR, fac.docnum), 1, 2) almacen, ");
+        sb.append("               SUM(fac.DocTotal - fac.VatSum - fac.RoundDif) AS ventas, ");
+        sb.append("               0 AS devuelto ");
+        sb.append("        FROM   OINV fac ");
+        sb.append("        WHERE  CONVERT(DATE, fac.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("        AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("        WHERE  YEAR(fac.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("'       AND    MONTH(fac.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("'       AND    DAY(fac.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
+        sb.append("'       AND    fac.DocNum NOT LIKE '2%' ");
+        sb.append("        AND    fac.DocNum NOT LIKE '5%' ");
+        sb.append("        AND    fac.DocType = 'I' ");
+        sb.append("        AND    fac.DocSubType = '--' ");
+        sb.append("        AND    DocNum NOT IN (SELECT U_DocNum ");
+        sb.append("                              FROM   [@BARU_DOC_EXCLUIDOS] ");
+        sb.append("                              WHERE  U_TipoDocumento = 'Factura') ");
+        sb.append("        GROUP  BY fac.docdate, SUBSTRING(CONVERT(VARCHAR, fac.docnum), 1, 2) ");
+        sb.append("        UNION ");
+        sb.append("        SELECT dev.docdate, ");
+        sb.append("               SUBSTRING(CONVERT(VARCHAR, dev.NumAtCard), 1, 2) almacen, ");
+        sb.append("               0 AS ventas, ");
+        sb.append("               SUM(dev.DocTotal - dev.VatSum - dev.RoundDif) devuelto ");
+        sb.append("        FROM   ORIN dev ");
+        sb.append("        WHERE  CONVERT(DATE, dev.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("        AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("        WHERE  YEAR(dev.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("'       AND    MONTH(dev.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("'       AND    DAY(dev.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
+        sb.append("'       AND    dev.NumAtCard NOT LIKE '2%' ");
+        sb.append("        AND    dev.NumAtCard NOT LIKE '5%' ");
+        sb.append("        AND    dev.DocType = 'I' ");
+        sb.append("        AND    dev.U_TipoNota = 'A' ");
+        sb.append("        AND    numAtCard NOT IN (SELECT U_DocNum ");
+        sb.append("                                 FROM   [@BARU_DOC_EXCLUIDOS] ");
+        sb.append("                                 WHERE  U_TipoDocumento = 'Devolucion') ");
         sb.append("        GROUP  BY dev.docdate, SUBSTRING(CONVERT(VARCHAR, dev.NumAtCard), 1, 2) ");
         sb.append("       ) AS ventasnetas ");
         sb.append("GROUP  BY almacen ");
@@ -1246,18 +1396,22 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
         sb.append("       CONVERT(DATETIME, CONCAT(CONVERT(DATE, CAST(DocDate AS DATE), 102), ' ', CONCAT(SUBSTRING(RIGHT('000' + CAST(DocTime AS VARCHAR(4)), 4), 1, 2), ':', ");
         sb.append("       SUBSTRING(RIGHT('000' + CAST(DocTime AS VARCHAR(4)), 4), 3, 2))), 102) DocDate ");
         sb.append("FROM   OINV fac ");
-        sb.append("WHERE  YEAR(fac.DocDate) BETWEEN '");
-        sb.append(startYear);
-        sb.append("' AND '");
-        sb.append(endYear);
-        sb.append("' AND  MONTH(fac.DocDate) BETWEEN '");
-        sb.append(startMonth);
-        sb.append("' AND '");
-        sb.append(endMonth);
-        sb.append("' AND  DAY(fac.DocDate) BETWEEN '");
-        sb.append(startDay);
-        sb.append("' AND '");
-        sb.append(endDay);
+        sb.append("WHERE  CONVERT(DATE, fac.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("WHERE  YEAR(fac.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("' AND  MONTH(fac.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("' AND  DAY(fac.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
         sb.append("' AND  DocNum NOT LIKE '2%' ");
         sb.append("AND    DocNum NOT LIKE '5%' ");
         sb.append("AND    DocSubType = '--' ");
@@ -1272,18 +1426,22 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
         sb.append("       CONVERT(DATETIME, CONCAT(CONVERT(DATE, CAST(DocDate AS DATE), 102), ' ', CONCAT(SUBSTRING(RIGHT('000' + CAST(DocTime AS VARCHAR(4)), 4), 1, 2), ':', ");
         sb.append("       SUBSTRING(RIGHT('000' + CAST(DocTime AS VARCHAR(4)), 4), 3, 2))), 102) DocDate ");
         sb.append("FROM   ORIN dev ");
-        sb.append("WHERE  YEAR(dev.DocDate) BETWEEN '");
-        sb.append(startYear);
-        sb.append("' AND '");
-        sb.append(endYear);
-        sb.append("' AND  MONTH(dev.DocDate) BETWEEN '");
-        sb.append(startMonth);
-        sb.append("' AND '");
-        sb.append(endMonth);
-        sb.append("' AND  DAY(dev.DocDate) BETWEEN '");
-        sb.append(startDay);
-        sb.append("' AND '");
-        sb.append(endDay);
+        sb.append(" WHERE  CONVERT(DATE, dev.DocDate) BETWEEN '");
+        sb.append(startYear).append("-").append(startMonth).append("-").append(startDay).append("' ");
+        sb.append("AND '");
+        sb.append(endYear).append("-").append(endMonth).append("-").append(endDay);
+//        sb.append("WHERE  YEAR(dev.DocDate) BETWEEN '");
+//        sb.append(startYear);
+//        sb.append("' AND '");
+//        sb.append(endYear);
+//        sb.append("' AND  MONTH(dev.DocDate) BETWEEN '");
+//        sb.append(startMonth);
+//        sb.append("' AND '");
+//        sb.append(endMonth);
+//        sb.append("' AND  DAY(dev.DocDate) BETWEEN '");
+//        sb.append(startDay);
+//        sb.append("' AND '");
+//        sb.append(endDay);
         sb.append("' AND  dev.NumAtCard NOT LIKE '2%' ");
         sb.append("AND    dev.NumAtCard NOT LIKE '5%' ");
         sb.append("AND    dev.DocType = 'I' ");
@@ -1660,5 +1818,158 @@ public class FacturaSAPFacade extends AbstractFacade<FacturaSAP> {
             CONSOLE.log(Level.SEVERE, "Ocurrio un error al obtener los movimientos diarios del taller. ", e);
             return null;
         }
+    }
+
+    public List<Object[]> obtenerPedidos(String documento) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT DISTINCT CAST(ov.NumAtCard AS VARCHAR(20)) AS NroPedido,");
+        sb.append("       CAST(ov.DocDate AS DATE) AS FechaPedido,");
+        sb.append("       CASE WHEN ov.DocStatus = 'O' THEN 'PENDIENTE'");
+        sb.append("            WHEN ov.DocStatus = 'C' THEN 'CERRADA' END AS OrdenVenta,");
+        sb.append("       CAST(CASE WHEN nc.DocNum IS NULL  THEN 0 ELSE 1 END AS bit) AS Devolucion,");
+        sb.append("       CAST(CASE WHEN en.DocNum IS NULL  THEN 0 ELSE 1 END AS bit) AS Despachado,");
+        sb.append("       CAST(ov.DocTotal AS NUMERIC(18, 2)) AS Total ");
+        sb.append("FROM ORDR ov ");
+        sb.append("LEFT  JOIN ORIN nc ON ov.NumAtCard = nc.NumAtCard ");
+        sb.append("LEFT  JOIN ODLN en ON ov.NumAtCard = en.NumAtCard ");
+        sb.append("WHERE ov.CardCode = '");
+        sb.append(documento);
+        sb.append("' ORDER BY CAST(ov.DocDate AS date) ASC");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al obtener los pedidos del cliente " + documento, e);
+            return null;
+        }
+    }
+
+    public List<Object[]> obtenerDetallePedido(String factura, String item) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CAST(fv.DocNum AS VARCHAR(20)) AS nroPedido, ");
+        sb.append("      CASE WHEN ov.DocStatus = 'O' THEN 'PENDIENTE' ");
+        sb.append("           WHEN ov.DocStatus = 'C' THEN 'CERRADA' END AS ordenVenta, ");
+        sb.append("      CAST(ISNULL(ov.DocDate,fv.DocDate) AS DATE) AS fechaPedido, ");
+        sb.append("      CAST(sn.CardName AS VARCHAR(100)) AS cliente, ");
+        sb.append("      CAST(dr.street AS VARCHAR(100)) AS direccionEntrega, ");
+        sb.append("      CAST(dr.city AS VARCHAR(50)) AS ciudadEntrega, ");
+        sb.append("      CAST(ISNULL(dp.Name,'') AS VARCHAR(50)) AS departamentoEntrega, ");
+        sb.append("      CAST(dr.Block AS VARCHAR(50)) AS telefono, ");
+        sb.append("      CAST(dr.Building AS VARCHAR(50)) AS celular, ");
+        sb.append("      CAST((LEFT(df.ItemCode,3) + '.' + RIGHT(df.ItemCode,4)) AS VARCHAR(10)) AS item, ");
+        sb.append("      CAST(ar.FrgnName AS VARCHAR(50)) AS producto, ");
+        sb.append("      CAST(CASE WHEN (SELECT SUM(tj.CreditSum) ");
+        sb.append("                FROM ORCT rc ");
+        sb.append("		   LEFT JOIN RCT3 tj ON rc.DocEntry = tj.DocNum ");
+        sb.append("		   WHERE tj.CreditSum <> 0 AND rc.DocEntry = fv.ReceiptNum) IS NULL THEN '' ELSE 'TARJETA|' END + ");
+        sb.append("	 CASE WHEN (SELECT SUM(rc.CashSum) ");
+        sb.append("		   FROM ORCT rc ");
+        sb.append("		   WHERE rc.CashSum <> 0 AND rc.DocEntry = fv.ReceiptNum) IS NULL THEN '' ELSE 'CONTADO|' END + ");
+        sb.append("      CASE WHEN (SELECT SUM(cq.CheckSum) ");
+        sb.append("	           FROM ORCT rc LEFT JOIN RCT1 cq ON rc.DocEntry = cq.DocNum ");
+        sb.append("		   WHERE cq.CheckSum <> 0 AND rc.DocEntry = fv.ReceiptNum) IS NULL THEN '' ELSE 'CHEQUE|' END + ");
+        sb.append("      CASE WHEN (SELECT rc.TrsfrSum ");
+        sb.append("		   FROM ORCT rc ");
+        sb.append("		   WHERE rc.TrsfrSum <> 0 AND rc.DocEntry = fv.ReceiptNum) IS NULL THEN '' ELSE 'CRUCE' END AS VARCHAR(MAX)) AS metodoPago, ");
+        sb.append("      CAST(df.Quantity AS INT) AS cantidad, ");
+        sb.append("	 CAST(ISNULL(dn.Quantity,0) AS INT) AS devuelto, ");
+        sb.append("      CAST(ISNULL(de.Quantity,0) AS INT) AS entregado, ");
+        sb.append("      CASE WHEN df.U_EstadoP = 'D' THEN 'ENTREGADO' ");
+        sb.append("           WHEN df.U_EstadoP = 'G' THEN 'GUARDADO' ");
+        sb.append("	      WHEN df.U_EstadoP = 'P' THEN 'PENDIENTE' ELSE 'OTRO' END AS estadoItem, ");
+        sb.append("      CAST(ROUND(df.PriceAfVAT,-1) AS NUMERIC(18,2)) AS precioUnitario, ");
+        sb.append("      CAST(ROUND((df.PriceAfVAT*df.Quantity),1) AS NUMERIC(18,2)) AS subtotal, ");
+        sb.append("      CAST(CASE WHEN dn.LineNum IS NULL THEN 0 ELSE 1 END AS bit) AS devolucion, ");
+        sb.append("      CAST(CASE WHEN de.LineNum IS NULL THEN 0 ELSE 1 END AS bit) AS despachado, ");
+        sb.append("      CAST(CASE WHEN DATEDIFF(MONTH, de.DocDate, CONVERT(date, GETDATE())) <= 12 THEN 1 ELSE 0 END AS bit) AS garantia ");
+        sb.append("FROM  OINV fv ");
+        sb.append("INNER JOIN INV1 df ON df.DocEntry = fv.DocEntry ");
+        sb.append("INNER JOIN OITM ar ON ar.ItemCode = df.ItemCode ");
+        sb.append("INNER JOIN OCRD sn ON sn.CardCode = fv.CardCode ");
+        sb.append("INNER JOIN CRD1 dr ON dr.CardCode = sn.CardCode AND sn.ShipToDef = dr.Address ");
+        sb.append("LEFT  JOIN (SELECT TOP 1 * FROM ORDR o WHERE o.NumAtCard = '");
+        sb.append(factura);
+        sb.append("' ORDER BY o.DocDate ASC) ov ON ov.NumAtCard = fv.DocNum ");
+        sb.append("LEFT  JOIN OCST dp ON dp.Code = dr.State AND dp.Country = 'CO' ");
+        sb.append("LEFT  JOIN ORIN nc ON fv.DocNum = nc.NumAtCard ");
+        sb.append("LEFT  JOIN RIN1 dn ON nc.DocEntry = dn.DocEntry AND df.U_lineNumFv = dn.U_lineNumFv ");
+        sb.append("LEFT  JOIN (SELECT TOP 1 * FROM DLN1 e WHERE e.U_NWR_Base = '");
+        sb.append(factura);
+        sb.append("' ORDER BY e.DocDate ASC) de ON de.U_NWR_Base = fv.DocNum AND df.U_lineNumFv = de.U_lineNumFv ");
+        sb.append("WHERE dr.AdresType = 'S' AND fv.DocNum = '");
+        sb.append(factura);
+        if (item != null) {
+            sb.append("' AND df.ItemCode = '");
+            sb.append(item);
+        }
+        sb.append("' ORDER BY CAST(ov.DocDate AS date) ASC");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al obtener el detalle del pedido nro " + factura, e);
+            return null;
+        }
+    }
+
+    public List<FacturaSAP> obtenerFacturasDecorador(String decorador, String cliente) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT fac.* ");
+        sb.append("FROM   OINV fac ");
+        sb.append("INNER  JOIN [@BARU_DECORADORES] dec ON dec.Name = fac.U_Diseno ");
+
+        if (cliente != null && !cliente.isEmpty()) {
+            sb.append("WHERE  dec.Code = '");
+            sb.append(decorador);
+            sb.append("' AND    fac.CardCode = '");
+            sb.append(cliente);
+            sb.append("' ");
+        } else {
+            sb.append("WHERE  dec.Code = '");
+            sb.append(decorador);
+            sb.append("' ");
+        }
+
+        try {
+            return em.createNativeQuery(sb.toString(), FacturaSAP.class).getResultList();
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al consultar las facturas para decorador. ", e);
+        }
+        return null;
+    }
+
+    public Integer obtenerMesesSinComisionarDecorador(String decorador, List<Integer> docNums) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(INT, DATEDIFF(MM, MAX(f.DocDate), GETDATE())) AS ultimaFecha ");
+        sb.append("FROM   OINV f ");
+        sb.append("INNER  JOIN [@BARU_DECORADORES] dec ON dec.Name = f.U_Diseno ");
+        sb.append("WHERE  dec.Code = '");
+        sb.append(decorador);
+        sb.append("' ");
+
+        if (docNums != null && !docNums.isEmpty()) {
+            sb.append("AND   f.DocNum IN (");
+
+            for (Integer d : docNums) {
+                sb.append(d);
+                sb.append(",");
+            }
+            sb.deleteCharAt(sb.length() - 1);
+
+            sb.append(") ");
+        }
+
+        try {
+            return (Integer) em.createNativeQuery(sb.toString()).getSingleResult();
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al obtener los meses sin comisionar de un decorador. ", e);
+        }
+        return null;
     }
 }

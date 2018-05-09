@@ -1,5 +1,6 @@
 package co.matisses.persistence.sap.facade;
 
+import co.matisses.persistence.sap.dto.FiltroDTO;
 import co.matisses.persistence.sap.entity.ItemInventario;
 import co.matisses.persistence.sap.entity.ItemInventario_;
 import java.util.ArrayList;
@@ -64,7 +65,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
         sb.append("and itm.SWeight1 > 0 and itm.U_fotosOK = 1 ");
         sb.append("and itm.U_U_Hab_Des = 'tYES' ");
         sb.append("and len(itm.ItemCode) = 20 ");
-        sb.append("and (itm.U_ID_MERCADOLIBRE is null or itm.U_ID_MERCADOLIBRE = '') ");
+        //sb.append("and (itm.U_ID_MERCADOLIBRE is null or itm.U_ID_MERCADOLIBRE = '') ");
         return sb.toString();
     }
 
@@ -608,24 +609,6 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
         sb.append("+ ':' + SUBSTRING(convert(varchar(4),RIGHT('0000' + convert");
         sb.append("(varchar,CONVERT(time,U_fechaModificacion)),4)),3,4)),GETDATE()) <= ");
         sb.append(minutos);
-        //TODO: Item con saldo y sin id MCL para procesar de nuevo.
-        sb.append(" union select convert(varchar(20),saldo.ItemCode) itemCode ");
-        sb.append("FROM OITM itm ");
-        sb.append("INNER JOIN OITW saldo ON saldo.ItemCode = itm.ItemCode AND saldo.OnHand > 0 AND saldo.WhsCode IN ('0101','0203','0103') ");
-        sb.append("INNER JOIN OWHS alm ON alm.WhsCode = saldo.WhsCode AND alm.U_Ciudad LIKE '05%' ");
-        sb.append("INNER JOIN [@BARU_SUBGRUPO] s ON s.Code = itm.U_SubGrupo ");
-        sb.append("WHERE itm.ItmsGrpCod in (104,107,124,126,127,128,129) ");
-        sb.append("and itm.U_Grupo is not null and itm.U_SubGrupo is not null ");
-        sb.append("and itm.U_modelo is not null and itm.SHeight1 is not null ");
-        sb.append("and itm.SLength1 is not null and itm.SWidth1 is not null ");
-        sb.append("and itm.SWeight1 is not null ");
-        sb.append("and itm.U_descripciona is not null and itm.SHeight1 > 0  ");
-        sb.append("and itm.SLength1 > 0 and itm.SWidth1 > 0 ");
-        sb.append("and itm.SWeight1 > 0 and itm.U_fotosOK = 1 ");
-        sb.append("and itm.U_U_Hab_Des = 'tYES' ");
-        sb.append("and saldo.OnHand > 0 ");
-        sb.append("and len(itm.ItemCode)=20 ");
-        sb.append("and (itm.U_ID_MERCADOLIBRE is null or itm.U_ID_MERCADOLIBRE = '') ");
         sb.append(" order by 1");
 
         CONSOLE.log(Level.INFO, sb.toString());
@@ -1018,6 +1001,235 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
         return sb.toString();
     }
 
+    private String construirCondicionesComunesV2(boolean conSaldo, Map<String, List<String>> filtros) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("     FROM   OITM itm ");
+        sb.append("     INNER  JOIN OITM itm2 on itm2.U_modelo = itm.U_modelo ");
+        sb.append("     INNER  JOIN OITB AS dpto ON dpto.ItmsGrpCod = itm.ItmsGrpCod ");
+        sb.append("	LEFT   JOIN ITM1 precio ON precio.ItemCode = itm.ItemCode ");
+        sb.append("	LEFT   JOIN [@BARU_MARCAS] marca ON marca.Code = itm.U_CodigoMarca ");
+        sb.append("	INNER  JOIN OITW saldo ON saldo.ItemCode = itm.ItemCode ");
+        sb.append("	LEFT   JOIN [@BARU_GRUPO] grupo ON grupo.Code = itm.U_Grupo ");
+        sb.append("	LEFT   JOIN [@BARU_SUBGRUPO] subgrupo ON subgrupo.Code = itm.U_SubGrupo ");
+        sb.append("	LEFT   JOIN [@BARU_COLXART] colorArticulo ON colorArticulo.U_articulo = itm.ItemCode ");
+        sb.append("	LEFT   JOIN [@BARUCOLOR] color ON color.Code = colorArticulo.U_color ");
+        sb.append("	LEFT   JOIN [@BARU_COLOR_GENERICO] colorGenerico ON colorGenerico.Code = color.U_colorgenerico ");
+        sb.append("	LEFT   JOIN [@BARU_MATXART] materialArticulo ON materialArticulo.U_itemCode = itm.ItemCode ");
+        sb.append("	LEFT   JOIN [@BARU_MATERIALES] material ON material.Code = materialArticulo.U_matCode ");
+        sb.append("	LEFT   JOIN OITW almacenes ON almacenes.ItemCode = itm.ItemCode ");
+        if (conSaldo) {
+            sb.append("		AND almacenes.OnHand > 0 ");
+        }
+        sb.append("	WHERE  itm.SellItem = 'Y' ");
+        sb.append("	AND    itm.InvntItem = 'Y' ");
+        sb.append("	AND    itm.PrchseItem = 'Y' ");
+        sb.append("	AND    itm.ItemType = 'I' ");
+        sb.append("	AND    LEN(itm.ItemCode) = 20 ");
+        sb.append("	AND    precio.PriceList = 2 ");
+        sb.append("	AND    saldo.OnHand > 0 ");
+        sb.append("	AND    almacenes.OnHand > 0 ");
+        sb.append("	AND    saldo.WhsCode NOT LIKE 'CL%' ");
+        sb.append("	AND    saldo.WhsCode NOT LIKE 'DM%' ");
+        sb.append("	AND    almacenes.WhsCode NOT LIKE 'CL%' ");
+        sb.append("	AND    almacenes.WhsCode NOT LIKE 'DM%' ");
+        // Filtro por almacen
+        if (filtros.containsKey("SUCURSAL")) {
+            if (!filtros.get("SUCURSAL").isEmpty()) {
+                sb.append("AND saldo.WhsCode IN (");
+                filtros.get("SUCURSAL").stream().map((almacen) -> {
+                    sb.append("'");
+                    sb.append(almacen);
+                    return almacen;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+        // Filtro por referencia
+        if (filtros.containsKey("REFERENCIA")) {
+            if (!filtros.get("REFERENCIA").isEmpty()) {
+                sb.append("AND    itm.ItemCode IN (");
+                filtros.get("REFERENCIA").stream().map((ref) -> {
+                    sb.append("'");
+                    sb.append(ref);
+                    return ref;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        // Filtro por marca
+        if (filtros.containsKey("MARCA")) {
+            if (!filtros.get("MARCA").isEmpty()) {
+                sb.append("AND    marca.Name IN (");
+                filtros.get("MARCA").stream().map((marca) -> {
+                    sb.append("'");
+                    sb.append(marca);
+                    return marca;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        // Filtro por proveedor
+        if (filtros.containsKey("PROVEEDOR")) {
+            if (!filtros.get("PROVEEDOR").isEmpty()) {
+                sb.append("AND    ( ");
+                filtros.get("PROVEEDOR").stream().map((prov) -> {
+                    sb.append("itm.ItemCode like '");
+                    sb.append(prov);
+                    return prov;
+                }).forEach((_item) -> {
+                    sb.append("%' OR ");
+                });
+                sb.replace(sb.length() - 3, sb.length(), ") ");
+            }
+        }
+
+        // Filtro por almacen
+        if (filtros.containsKey("ALMACEN")) {
+            if (!filtros.get("ALMACEN").isEmpty()) {
+                sb.append("AND    saldo.WhsCode IN (");
+                filtros.get("ALMACEN").stream().map((almacen) -> {
+                    sb.append("'");
+                    sb.append(almacen);
+                    return almacen;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtro por color
+        if (filtros.containsKey("COLOR")) {
+            if (!filtros.get("COLOR").isEmpty()) {
+                sb.append("AND    colorGenerico.Name IN (");
+                filtros.get("COLOR").stream().map((almacen) -> {
+                    sb.append("'");
+                    sb.append(almacen);
+                    return almacen;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtro por color
+        if (filtros.containsKey("DEPARTAMENTO")) {
+            if (!filtros.get("DEPARTAMENTO").isEmpty()) {
+                sb.append("AND    dpto.U_Nombre_Filtros IN (");
+                filtros.get("DEPARTAMENTO").stream().map((dpto) -> {
+                    sb.append("'");
+                    sb.append(dpto);
+                    return dpto;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtro por grupo
+        if (filtros.containsKey("GRUPO")) {
+            if (!filtros.get("GRUPO").isEmpty()) {
+                sb.append("AND    grupo.Name IN (");
+                filtros.get("GRUPO").stream().map((grupo) -> {
+                    sb.append("'");
+                    sb.append(grupo);
+                    return grupo;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtro por subgrupo
+        if (filtros.containsKey("SUBGRUPO")) {
+            if (!filtros.get("SUBGRUPO").isEmpty()) {
+                sb.append("AND    subgrupo.U_descripcion IN (");
+                filtros.get("SUBGRUPO").stream().map((almacen) -> {
+                    sb.append("'");
+                    sb.append(almacen);
+                    return almacen;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtro por material
+        if (filtros.containsKey("MATERIAL")) {
+            if (!filtros.get("MATERIAL").isEmpty()) {
+                sb.append("AND    material.Name IN (");
+                filtros.get("MATERIAL").stream().map((almacen) -> {
+                    sb.append("'");
+                    sb.append(almacen);
+                    return almacen;
+                }).forEach((_item) -> {
+                    sb.append("', ");
+                });
+                sb.replace(sb.length() - 2, sb.length(), ") ");
+            }
+        }
+
+        //Filtrar por texto usando las columnas FrgnName y Ref_Pro
+        if (filtros.containsKey("TEXTO")) {
+            if (!filtros.get("TEXTO").isEmpty()) {
+                sb.append("AND (");
+                filtros.get("TEXTO").stream().map((filtro) -> {
+                    sb.append("itm.FrgnName LIKE '%");
+                    sb.append(filtro);
+                    return filtro;
+                }).map((filtro) -> {
+                    sb.append("%' OR itm.U_U_Ref_Pro LIKE '%");
+                    sb.append(filtro);
+                    return filtro;
+                }).map((filtro) -> {
+                    sb.append("%' OR itm.ItemCode = '");
+                    sb.append(filtro);
+                    return filtro;
+                }).forEach((_item) -> {
+                    sb.append("' OR ");
+                });
+                sb.replace(sb.length() - 3, sb.length(), ") ");
+            }
+        }
+
+        //Filtrar por precio
+        if (filtros.containsKey("PRECIO") && filtros.get("PRECIO").size() == 2) {
+            sb.append("AND precio.Price BETWEEN ");
+            sb.append(filtros.get("PRECIO").get(0));
+            sb.append(" AND ");
+            sb.append(filtros.get("PRECIO").get(1));
+            sb.append(" ");
+        }
+
+        //Filtrar por coleccion
+        if (filtros.containsKey("COLECCIÓN") && !filtros.get("COLECCIÓN").isEmpty()) {
+            sb.append("AND    itm.U_Coleccion IN (");
+            filtros.get("COLECCIÓN").stream().map((coleccion) -> {
+                sb.append("'");
+                sb.append(coleccion);
+                return coleccion;
+            }).forEach((_item) -> {
+                sb.append("', ");
+            });
+            sb.replace(sb.length() - 2, sb.length(), ") ");
+        }
+
+        return sb.toString();
+    }
+
     private String construirCondicionesComunesVista(Map<String, List<String>> filtros) {
         StringBuilder sb = new StringBuilder();
         if (filtros.isEmpty()) {
@@ -1226,8 +1438,9 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
     public int consultarTotalRegistros(boolean conSaldo, Map<String, List<String>> filtros) {
         StringBuilder sb = new StringBuilder();
+
         sb.append("SELECT COUNT(DISTINCT itm.ItemCode) registros ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
 
         try {
             CONSOLE.log(Level.FINE, sb.toString());
@@ -1302,18 +1515,24 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("SELECT ItemCode, FrgnName, U_U_Ref_Pro, precio, saldo, nuevoDesde, descripcion, COUNT(DISTINCT ItemCodeCombinacion) colores ");
-        sb.append("FROM   ( ");
-        sb.append("	   SELECT DISTINCT CAST(itm.ItemCode AS VARCHAR(20)) ItemCode, ");
+        sb.append("SELECT ItemCode, FrgnName, U_U_Ref_Pro, precio, CONVERT(INT, saldo) AS saldo, nuevoDesde, descripcion, COUNT(DISTINCT ItemCodeCombinacion) colores ");
+        sb.append("FROM   (SELECT ItemCode, FrgnName, U_U_Ref_Pro, precio, SUM(saldo) AS saldo, nuevoDesde, descripcion, ItemCodeCombinacion ");
+        sb.append("        FROM (SELECT DISTINCT CAST(itm.ItemCode AS VARCHAR(20)) ItemCode, ");
         sb.append("		  CAST(itm.FrgnName AS VARCHAR(60)) FrgnName, ");
         sb.append("		  CAST(itm.U_U_Ref_Pro AS VARCHAR(80)) U_U_Ref_Pro, ");
         sb.append("		  CAST(precio.Price AS INT) precio, ");
-        sb.append("		  saldo.saldo, ");
+        sb.append("		  saldo.OnHand AS saldo, ");
+        sb.append("		  saldo.WhsCode AS almacen, ");
         sb.append("		  ISNULL(itm.U_U_Act_Qn, DATEADD(YEAR, -8, GETDATE())) nuevoDesde, ");
         sb.append("		  CAST(itm.U_DescCorta as VARCHAR(MAX)) descripcion, ");
         sb.append("		  CAST(itm2.ItemCode AS VARCHAR(20)) ItemCodeCombinacion ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
-        sb.append("	   ) productos ");
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
+        sb.append("	   GROUP  BY itm.ItemCode, itm.FrgnName, itm.U_U_Ref_Pro, precio.Price, saldo.OnHand, itm.U_U_Act_Qn, itm.U_DescCorta, itm2.ItemCode, saldo.whscode) AS T1 ");
+        //Filtrar solo productos con saldo
+        if (conSaldo) {
+            sb.append("WHERE  saldo > 0 ");
+        }
+        sb.append("	  GROUP  BY ItemCode, FrgnName, U_U_Ref_Pro, precio, nuevoDesde, descripcion, ItemCodeCombinacion) productos ");
         sb.append("GROUP  BY ItemCode, FrgnName, U_U_Ref_Pro, precio, saldo, nuevoDesde, descripcion ");
         sb.append("ORDER  BY ");
         switch (orderBy) {
@@ -1639,7 +1858,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
         StringBuilder sb = new StringBuilder();
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, almacenes.WhsCode) AS almacen ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS codigosAlmacenes ");
         sb.append("WHERE  codigosAlmacenes.almacen IS NOT NULL ");
 
@@ -1656,7 +1875,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, colorGenerico.Name) AS nombre ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS colores ");
         sb.append("WHERE  colores.nombre IS NOT NULL ");
 
@@ -1673,7 +1892,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, material.Name) AS nombre ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS materiales ");
         sb.append("WHERE  materiales.nombre IS NOT NULL ");
 
@@ -1690,7 +1909,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, LEFT(itm.ItemCode,3)) AS proveedor ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS proveedores ");
         sb.append("WHERE  proveedores.proveedor IS NOT NULL ");
 
@@ -1707,7 +1926,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, subgrupo.U_descripcion) AS descripcion ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS subgrupos ");
         sb.append("WHERE  subgrupos.descripcion IS NOT NULL ");
 
@@ -1724,7 +1943,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, grupo.Name) AS nombre ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS grupos ");
         sb.append("WHERE  grupos.nombre IS NOT NULL ");
 
@@ -1741,7 +1960,7 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
 
         sb.append("SELECT * ");
         sb.append("FROM   (SELECT DISTINCT CONVERT(VARCHAR, marca.Name) AS nombre ");
-        sb.append(construirCondicionesComunes(conSaldo, filtros));
+        sb.append(construirCondicionesComunesV2(conSaldo, filtros));
         sb.append("       ) AS marcas ");
         sb.append("WHERE  marcas.nombre IS NOT NULL ");
 
@@ -2060,5 +2279,140 @@ public class ItemInventarioFacade extends AbstractFacade<ItemInventario> {
             CONSOLE.log(Level.SEVERE, "Error al obtener items para calcular codeBars");
         }
         return null;
+    }
+
+    public boolean validarModelo(String modelo) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(VARCHAR, U_modelo) Modelo ");
+        sb.append("FROM   OITM ");
+        sb.append("WHERE  U_modelo = '");
+        sb.append(modelo);
+        sb.append("' ");
+
+        try {
+            List<String> tmp = em.createNativeQuery(sb.toString()).getResultList();
+
+            if (tmp.size() > 0) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (NoResultException e) {
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "Ocurrio un error al validar el modelo. ", e);
+        }
+        return false;
+    }
+
+    public List<String> obtenerProveedores() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT DISTINCT CONVERT(VARCHAR, CardCode) proveedor ");
+        sb.append("FROM   OITM ");
+        sb.append("WHERE  LEN(ItemCode) = 20 ");
+        sb.append("AND    CardCode IS NOT NULL");
+
+        try {
+            return em.createNativeQuery(sb.toString()).getResultList();
+        } catch (Exception e) {
+            return new ArrayList<String>();
+        }
+    }
+
+    public List<String> obtenerReferenciasParametros(Map<FiltroDTO, List<String>> parametros) {
+        boolean ejecutar = false;
+        boolean primera = true;
+        List<String> referencias;
+        StringBuilder sb = new StringBuilder();
+
+        for (FiltroDTO columna : parametros.keySet()) {
+            if (columna.isTipoReferencia()) {
+                ejecutar = true;
+                if (primera) {
+                    sb.append("SELECT DISTINCT CONVERT(varchar(20),ItemCode) ItemCode ");
+                    sb.append("FROM OITM ");
+                    sb.append("WHERE ");
+                    primera = false;
+                } else {
+                    sb.append("AND ");
+                }
+
+                sb.append(columna.getCodigoColumna());
+                if (parametros.get(columna).size() > 1) {
+                    sb.append(" IN (");
+                    for (String valor : parametros.get(columna)) {
+                        if (columna.getTipo().equalsIgnoreCase("String") || columna.getTipo().equalsIgnoreCase("Date")) {
+                            sb.append("'");
+                            sb.append(valor);
+                            if (columna.getSufijo() != null) {
+                                sb.append(columna.getSufijo());
+                            }
+                            sb.append("'");
+                            sb.append(",");
+                        } else if (columna.getTipo().equalsIgnoreCase("Integer")) {
+                            sb.append(valor);
+                            if (columna.getSufijo() != null) {
+                                sb.append(columna.getSufijo());
+                            }
+                            sb.append(",");
+                        }
+                    }
+
+                    sb.deleteCharAt(sb.length() - 1);
+                    sb.append(") ");
+                } else if (columna.getTipo().equalsIgnoreCase("String") || columna.getTipo().equalsIgnoreCase("Date")) {
+                    sb.append("=");
+                    sb.append("'");
+                    sb.append(parametros.get(columna).get(0));
+                    if (columna.getSufijo() != null) {
+                        sb.append(columna.getSufijo());
+                    }
+
+                    sb.append("' ");
+                } else if (columna.getTipo().equalsIgnoreCase("Integer")) {
+                    sb.append("=");
+                    sb.append(parametros.get(columna).get(0));
+                    if (columna.getSufijo() != null) {
+                        sb.append(columna.getSufijo());
+                    }
+                }
+            }
+        }
+
+        if (ejecutar) {
+            try {
+                referencias = (List<String>) em.createNativeQuery(sb.toString()).getResultList();
+            } catch (NoResultException e) {
+                return null;
+            } catch (Exception e) {
+                CONSOLE.log(Level.SEVERE, "Ocurrio un error al referencias por parametros. ", e);
+                return null;
+            }
+        } else {
+            return new ArrayList<>();
+        }
+        return referencias;
+    }
+
+    public List<String> consultarReferenciasProveedor(String proveedor) {
+        List<String> referencias;
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT DISTINCT CONVERT(varchar(20),ItemCode) ItemCode ");
+        sb.append("FROM OITM ");
+        sb.append("WHERE ItemCode LIKE '");
+        sb.append(proveedor);
+        sb.append("%' AND LEN(ItemCode) = 20 ORDER BY ItemCode");
+
+        try {
+            referencias = (List<String>) em.createNativeQuery(sb.toString()).getResultList();
+            CONSOLE.log(Level.INFO, "Se encontraron [0] referencias para el proveedor [1]", new Object[]{referencias.size(), proveedor});
+        } catch (Exception e) {
+            CONSOLE.log(Level.SEVERE, "No se encontraron referencias para el proveedor [0]", proveedor);
+            return new ArrayList<String>();
+        }
+
+        return referencias;
     }
 }

@@ -63,4 +63,20 @@ public class BaruMunicipiosFacade extends AbstractFacade<BaruMunicipios> {
         }
         return null;
     }
+
+    public String consultarNombreCiudad(String codCiudad) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT CONVERT(VARCHAR(50), Name) AS cityName ");
+        sb.append("FROM [@BPCO_MU] ");
+        sb.append("WHERE Code = ");
+        sb.append(codCiudad);
+
+        try {
+            return (String) em.createNativeQuery(sb.toString()).getSingleResult();
+        } catch (Exception e) {
+            log.log(Level.SEVERE, e.getMessage());
+            return null;
+        }
+    }
 }
