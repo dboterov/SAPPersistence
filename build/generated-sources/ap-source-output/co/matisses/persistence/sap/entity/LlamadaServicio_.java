@@ -1,0 +1,107 @@
+package co.matisses.persistence.sap.entity;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import javax.annotation.Generated;
+import javax.persistence.metamodel.SingularAttribute;
+import javax.persistence.metamodel.StaticMetamodel;
+
+@Generated(value = "org.hibernate.jpamodelgen.JPAMetaModelEntityProcessor")
+@StaticMetamodel(LlamadaServicio.class)
+public abstract class LlamadaServicio_ {
+
+	public static volatile SingularAttribute<LlamadaServicio, Integer> callID;
+	public static volatile SingularAttribute<LlamadaServicio, Short> remTime;
+	public static volatile SingularAttribute<LlamadaServicio, Short> problemTyp;
+	public static volatile SingularAttribute<LlamadaServicio, String> country;
+	public static volatile SingularAttribute<LlamadaServicio, Short> instance;
+	public static volatile SingularAttribute<LlamadaServicio, Short> userSign2;
+	public static volatile SingularAttribute<LlamadaServicio, Short> uNWRRMAType;
+	public static volatile SingularAttribute<LlamadaServicio, Date> endDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> subject;
+	public static volatile SingularAttribute<LlamadaServicio, String> uTipoServ;
+	public static volatile SingularAttribute<LlamadaServicio, String> itemCode;
+	public static volatile SingularAttribute<LlamadaServicio, String> resolution;
+	public static volatile SingularAttribute<LlamadaServicio, Short> callType;
+	public static volatile SingularAttribute<LlamadaServicio, Date> respOnDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> itemName;
+	public static volatile SingularAttribute<LlamadaServicio, Date> free2;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> scl5NxtLn;
+	public static volatile SingularAttribute<LlamadaServicio, Character> free1;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> contractID;
+	public static volatile SingularAttribute<LlamadaServicio, String> uNwrPo;
+	public static volatile SingularAttribute<LlamadaServicio, String> state;
+	public static volatile SingularAttribute<LlamadaServicio, Character> addrType;
+	public static volatile SingularAttribute<LlamadaServicio, Short> itemGroup;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> sCL2Count;
+	public static volatile SingularAttribute<LlamadaServicio, Short> respOnTime;
+	public static volatile SingularAttribute<LlamadaServicio, Date> assignDate;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> contctCode;
+	public static volatile SingularAttribute<LlamadaServicio, Short> responder;
+	public static volatile SingularAttribute<LlamadaServicio, Short> resolTime;
+	public static volatile SingularAttribute<LlamadaServicio, Character> priority;
+	public static volatile SingularAttribute<LlamadaServicio, Short> respByTime;
+	public static volatile SingularAttribute<LlamadaServicio, Character> handwrtten;
+	public static volatile SingularAttribute<LlamadaServicio, Short> userSign;
+	public static volatile SingularAttribute<LlamadaServicio, Short> resolOnTim;
+	public static volatile SingularAttribute<LlamadaServicio, Short> assignee;
+	public static volatile SingularAttribute<LlamadaServicio, Date> resolOnDat;
+	public static volatile SingularAttribute<LlamadaServicio, Date> startDate;
+	public static volatile SingularAttribute<LlamadaServicio, Short> status;
+	public static volatile SingularAttribute<LlamadaServicio, String> uProExt;
+	public static volatile SingularAttribute<LlamadaServicio, Character> transfered;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> docNum;
+	public static volatile SingularAttribute<LlamadaServicio, Date> updateDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> uCateGa;
+	public static volatile SingularAttribute<LlamadaServicio, String> city;
+	public static volatile SingularAttribute<LlamadaServicio, String> supplCode;
+	public static volatile SingularAttribute<LlamadaServicio, Short> origin;
+	public static volatile SingularAttribute<LlamadaServicio, String> uNwrRma;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> scl3NxtLn;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> logInstanc;
+	public static volatile SingularAttribute<LlamadaServicio, String> addrName;
+	public static volatile SingularAttribute<LlamadaServicio, Character> isQueue;
+	public static volatile SingularAttribute<LlamadaServicio, BigDecimal> duration;
+	public static volatile SingularAttribute<LlamadaServicio, String> manufSN;
+	public static volatile SingularAttribute<LlamadaServicio, Character> isEntitled;
+	public static volatile SingularAttribute<LlamadaServicio, Short> respAssign;
+	public static volatile SingularAttribute<LlamadaServicio, Character> remSent;
+	public static volatile SingularAttribute<LlamadaServicio, String> street;
+	public static volatile SingularAttribute<LlamadaServicio, Short> closeTime;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> startTime;
+	public static volatile SingularAttribute<LlamadaServicio, Character> displInCal;
+	public static volatile SingularAttribute<LlamadaServicio, String> pIndicator;
+	public static volatile SingularAttribute<LlamadaServicio, String> objType;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> scl2NxtLn;
+	public static volatile SingularAttribute<LlamadaServicio, Date> createDate;
+	public static volatile SingularAttribute<LlamadaServicio, Character> durType;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> scl1NxtLn;
+	public static volatile SingularAttribute<LlamadaServicio, Character> reminder;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> scl4NxtLn;
+	public static volatile SingularAttribute<LlamadaServicio, Date> cntrctDate;
+	public static volatile SingularAttribute<LlamadaServicio, Date> remDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> descrption;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> technician;
+	public static volatile SingularAttribute<LlamadaServicio, Short> updateTime;
+	public static volatile SingularAttribute<LlamadaServicio, Date> respByDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> room;
+	public static volatile SingularAttribute<LlamadaServicio, String> custmrName;
+	public static volatile SingularAttribute<LlamadaServicio, Date> closeDate;
+	public static volatile SingularAttribute<LlamadaServicio, String> internalSN;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> sCL1Count;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> insID;
+	public static volatile SingularAttribute<LlamadaServicio, Date> resolDate;
+	public static volatile SingularAttribute<LlamadaServicio, Character> remType;
+	public static volatile SingularAttribute<LlamadaServicio, Short> createTime;
+	public static volatile SingularAttribute<LlamadaServicio, String> uCausa;
+	public static volatile SingularAttribute<LlamadaServicio, Short> series;
+	public static volatile SingularAttribute<LlamadaServicio, BigDecimal> remQty;
+	public static volatile SingularAttribute<LlamadaServicio, Short> location;
+	public static volatile SingularAttribute<LlamadaServicio, Integer> endTime;
+	public static volatile SingularAttribute<LlamadaServicio, Short> assignTime;
+	public static volatile SingularAttribute<LlamadaServicio, String> queue;
+	public static volatile SingularAttribute<LlamadaServicio, String> customer;
+	public static volatile SingularAttribute<LlamadaServicio, String> uNumfactura;
+
+}
+
